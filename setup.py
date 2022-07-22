@@ -9,6 +9,7 @@ setup(name='fasp-clients',
                 'fasp.search',
                 'fasp.loc',
                 'fasp.workflow'],
+      package_dir={'fasp': 'src/fasp'},
       include_package_data=True,
       install_requires=['requests',
 					'pandas']
