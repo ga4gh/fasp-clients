@@ -68,9 +68,9 @@ class DRSClient:
 	# Get a URL for fetching bytes. 
 	# See https://ga4gh.github.io/data-repository-service-schemas/preview/develop/docs/#_get_access_url
 	def get_access_url(self, object_id, access_id=None):
-		''' Implementation of the DRS getget URL to access bytes method
+		''' Implementation of the DRS get URL to access bytes method
 		object_id
-		access_id al valid  access id for this object_id on the specified DRS server
+		access_id a valid  access id for this object_id on the specified DRS server
 		by default the access id supplied for the client will be used
 		'''
 		if access_id == None:

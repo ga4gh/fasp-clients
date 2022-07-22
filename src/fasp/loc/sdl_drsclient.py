@@ -54,17 +54,6 @@ class SRADRSClient(DRSClient):
 			return None
 
 
-	def get_access_url_region(self, object_id, region=None):
-
-		if region == None:
-			region = self.access_id
-		access_methods = self.get_object(object_id)['access_methods']
-		am = next((sub for sub in access_methods if sub['region'] == region), None)
-		if am == None:
-			print ('object not in region {}'.format(region))
-			return None
-		return self.get_access_url(object_id, am['access_id'])
-
 
 class sdlDRSClient(DRSClient):
 

@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "example_fasp_client"
-version = "0.0.2"
+name = "fasp-clients"
+version = "0.0.3"
 authors = [
   { name="Ian Fore", email="ian.fore@nih.gov" },
 ]
@@ -19,5 +19,5 @@ classifiers = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/ga4gh/fasp-scripts/tree/fasp-client"
-"Bug Tracker" = "https://github.com/ga4gh/fasp-scripts/issues"
+"Homepage" = "https://github.com/ga4gh/fasp-clients"
+"Bug Tracker" = "https://github.com/ga4gh/fasp-clients/issues"
