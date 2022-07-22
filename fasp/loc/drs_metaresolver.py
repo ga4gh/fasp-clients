@@ -13,7 +13,14 @@ from fasp.loc import GA4GHRegistryClient
 
 class DRSMetaResolver(DRSClient):
 	'''simulate identifiers.org and n2t.net metaresolver capability.
-	Prefixes used are not official. For demonstration purpposes only'''
+	Prefixes used are not official. For demonstration purpposes only.
+	
+	Resolve compact ids
+	Resolve host based DRS ids
+	Send DRS calls to the correct server
+	Handle id's prefixed with drs:// or not
+	Handle Host URIs containing port no (DRS id specifies port should not be provided)'''
+	
 	# Initialize a DRS Client for the service at the specified url base
 	# and with the REST resource to provide an access key 
 	def __init__(self, debug=False, getReg=False, meta_resolver=None):
@@ -31,7 +38,7 @@ class DRSMetaResolver(DRSClient):
 			"sbcgc": sbcgcDRSClient('~/.keys/sbcgc_key.json','s3'),
 			"sbcav": cavaticaDRSClient('~/.keys/sbcav_key.json','gs'),
 			'sbbdc' : sbbdcDRSClient('~/.keys/sbbdc_key.json', 's3'),
-			"sradrs": SRADRSClient('https://locate.be-md.ncbi.nlm.nih.gov')
+			"sradrs": SRADRSClient('https://locate.be-md.ncbi.nlm.nih.gov', '')
 		}
 			
 		self.debug = debug
@@ -48,10 +55,9 @@ class DRSMetaResolver(DRSClient):
 		
 
 
-	def strip_schema(self, did):
-		schema = "drs://"
-		if did.startswith(schema):
-			return did[len(schema):]
+	def __strip_schema(self, did):
+		if did.startswith("drs://"):
+			return did[6:]
 		return did  # or whatever
 		
 	def get_object(self, colonPrefixedID):
@@ -66,15 +72,15 @@ class DRSMetaResolver(DRSClient):
 
 	def get_access_url(self, colonPrefixedID, access_id=None):
 		client, did = self.get_client_robust(colonPrefixedID)
-		#client, id = self.getClient(colonPrefixedID)
+		#client, id = self.get_client(colonPrefixedID)
 		if client != None:
 			return client.get_access_url(did, access_id)
 		else:
 			return "prefix unrecognized"
 							
-	def getClient(self, submittedID):
+	def get_client(self, submittedID):
 		
-		colonPrefixedID = self.strip_schema(submittedID)
+		colonPrefixedID = self.__strip_schema(submittedID)
 		
 		idParts = colonPrefixedID.split(":", 1)
 		prefix = idParts[0]
@@ -86,10 +92,11 @@ class DRSMetaResolver(DRSClient):
 	def get_client_robust(self, submittedID):
 		''' find the DRS client for any kind of id we might be sent  '''
 		
-		stripped_id = self.strip_schema(submittedID)
+		stripped_id = self.__strip_schema(submittedID)
 		# is it compact or host based?
 		if ":" in stripped_id:
 			# It could still be host:port - let's check
+			# Note that the DRS spec saya port should not be in
 			idParts = stripped_id.split(":", 1)
 			prefix = idParts[0]
 			if prefix in self.drsClients.keys():
@@ -118,39 +125,6 @@ class DRSMetaResolver(DRSClient):
 		else:
 			return None
 			
-	def getClient2(self, hostURID):
-		'''Return a DRS client  to resolve the host name based DRS URI provided, also return the drs_id that needs to be passed to the DRS client.'''
-		if self.debug: print('Resolving {}'.format(hostURID))
-		idParts = hostURID.split("/",3)
-		if self.debug: print(idParts)
-		hostName = idParts[2]
-		drs_id = idParts[3]
-		
-		if hostName in self.hostNameIndex.keys():
-			return self.hostNameIndex[hostName], drs_id
-		
-		else:
-			return None
-			
-	def getObject2(self, hostURID):
-		client, drs_id = self.getClient2(hostURID)
-
-		
-		if client != None:
-			print ('id:{}'.format(drs_id))
-			print('sending to: {}'.format(client.__class__.__name__))
-			return client.get_object(drs_id)
-		else:
-			return "host unrecognized"
-	
-	def getAccessURL2(self, hostURID, access_id):
-		client, drs_id  = self.getClient2(hostURID)
-		
-		if client != None:
-			return client.get_access_url(drs_id, access_id)
-		else:
-			return "host unrecognized"
-	
 	def DRSClientFromRegistryEntry(self, service, prefix):
 		
 			if prefix == "crdc": 
@@ -202,7 +176,7 @@ class DRSMetaResolver(DRSClient):
 		return None
 	
 	def checkResolution(self, meta_resolver=None):
-		mixedIDs = ['insdc:SRR5368359.sra',
+		mixedIDs = [
 				'bdc:66eeec21-aad0-4a77-8de5-621f05e2d301',
 				'dg.4503:66eeec21-aad0-4a77-8de5-621f05e2d301',
 				'crdc:0e3c5237-6933-4d30-83f8-6ab721096bc7',
@@ -247,15 +221,15 @@ class DRSMetaResolver(DRSClient):
 				print ("{} untested".format(clientKey))
 			
 	def checkHostURIResolution(self):
-		mixedIDs = ['drs://gen3.theanvil.io/dg.ANV0/737247da-f5da-49a7-86ec-737978eb8293',
-				'drs://gen3.biodatacatalyst.nhlbi.nih.gov/dg.4503/65f34e96-230a-4e20-b15d-8510d688cbf0',
-				'drs://nci-crdc.datacommons.io/dg.4DFC/ff59c94b-8124-48a8-8b78-72e71f5d71f0',
+		mixedIDs = ['drs://gen3.theanvil.io/737247da-f5da-49a7-86ec-737978eb8293',
+				'drs://gen3.biodatacatalyst.nhlbi.nih.gov/65f34e96-230a-4e20-b15d-8510d688cbf0',
+				'drs://nci-crdc.datacommons.io/ff59c94b-8124-48a8-8b78-72e71f5d71f0',
 				]
 	
 		for id in mixedIDs:
 			print('-------------------------------')
 			print(id)
-			res = self.getObject2(id)
+			res = self.get_object(id)
 			print(json.dumps(res, indent=2))	
 
 def usage():
@@ -277,7 +251,7 @@ def main(argv):
 	    elif opt in ("-c", "--checkCompactResolution"):
 	        mr.checkResolution()
 	    elif opt in ("-u", "--checkURIResolution"):
-	        mr.getRegisteredDRSServices()
+	        #mr.getRegisteredDRSServices()
 	        mr.checkHostURIResolution()
 
 

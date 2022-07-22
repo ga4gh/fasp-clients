@@ -6,8 +6,14 @@ import re
 class DRSClient:
 	'''Basic DRS functions, no bundle handling'''    
 
-	def __init__(self, api_url_base, access_id=None, debug=False, public=False):
-		'''Initialize a DRS Client for the service at the specified url base'''
+	def __init__(self, api_url_base, access_id=None, public=False, debug=False):
+		'''Initialize a DRS Client for the service at the specified url base
+		api_url_base
+		access_id  the default access id to use when obtaining a URL for a  given object id
+		public an indicator that the data to be accessed through this client is public, adn that suthentication is not required
+	 -boolean
+	 debug - whether debug level informstion should be printed
+		'''
 		self.api_url_base = api_url_base
 		self.access_id = access_id
 		self.id = None
@@ -21,6 +27,8 @@ class DRSClient:
 
 	@classmethod
 	def fromRegistryEntry(cls, registryEntry):
+		''' Instantiate a DRS Client from information in a GA4GH Registry 
+		'''
 		instance = cls(registryEntry['url'])
 		instance.id = registryEntry['id']
 		instance.name = registryEntry['name']
@@ -31,6 +39,10 @@ class DRSClient:
     # Get info about a DrsObject
     # See https://ga4gh.github.io/data-repository-service-schemas/preview/develop/docs/#_get_object
 	def get_object(self, object_id, expand=False):
+		''' Implementation of the DRS getObject method
+		object_id
+		expand - whether or not bundles should be expanded - boolean 
+		'''
 		api_url = '{0}/ga4gh/drs/v1/objects/{1}'.format(self.api_url_base, object_id)
 		if expand:
 			api_url += '?expand=true'
@@ -40,16 +52,27 @@ class DRSClient:
 		#headers = {'Content-Type': 'application/json'}
 		#response = requests.get(api_url, headers=headers)
 		response = requests.get(api_url)
-		if response.status_code == 200:
-			resp = response.content.decode('utf-8')
-			return json.loads(resp)
-		else:
-			print(response.content.decode('utf-8'))
-			return response.status_code
+		response.raise_for_status()
+		resp = response.content.decode('utf-8')
+
+		return json.loads(resp)
+		#=======================================================================
+		# if response.status_code == 200:
+		# 	resp = response.content.decode('utf-8')
+		# 	return json.loads(resp)
+		# else:
+		# 	print(response.content.decode('utf-8'))
+		# 	return response.status_code
+		#=======================================================================
 
 	# Get a URL for fetching bytes. 
 	# See https://ga4gh.github.io/data-repository-service-schemas/preview/develop/docs/#_get_access_url
 	def get_access_url(self, object_id, access_id=None):
+		''' Implementation of the DRS getget URL to access bytes method
+		object_id
+		access_id al valid  access id for this object_id on the specified DRS server
+		by default the access id supplied for the client will be used
+		'''
 		if access_id == None:
 			access_id = self.access_id
 		
@@ -76,7 +99,11 @@ class DRSClient:
 	
 
 	def get_url_for_region(self, object_id, region):
-		''' get an access url for the object in the specified region'''
+		''' get an access url for the object in the specified region
+		object_id
+		region al valid region for this object_id on the specified DRS server
+
+		'''
 		access_methods = self.get_object(object_id)['access_methods']
 		am = next((sub for sub in access_methods if 'region' in sub and sub['region'] == region), None)
 		if am == None:
