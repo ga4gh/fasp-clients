@@ -2,7 +2,7 @@
 
 from setuptools import setup
 
-setup(name='fasp',
+setup(name='fasp-clients',
       version='1.1',
       packages=['fasp',
                 'fasp.runner',
