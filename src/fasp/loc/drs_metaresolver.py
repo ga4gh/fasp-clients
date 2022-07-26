@@ -38,7 +38,7 @@ class DRSMetaResolver(DRSClient):
 			"sbcgc": sbcgcDRSClient('~/.keys/sbcgc_key.json','s3'),
 			"sbcav": cavaticaDRSClient('~/.keys/sbcav_key.json','gs'),
 			'sbbdc' : sbbdcDRSClient('~/.keys/sbbdc_key.json', 's3'),
-			"sradrs": SRADRSClient('https://locate.be-md.ncbi.nlm.nih.gov', '')
+			"sradrs": SRADRSClient('https://locate.be-md.ncbi.nlm.nih.gov', '~/.keys/dbgap_task-specific-token', '')
 		}
 			
 		self.debug = debug
