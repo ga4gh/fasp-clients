@@ -9,14 +9,22 @@ import pandas as pd
 
 class DataConnectClient:
 
-	def __init__(self, hostURL, debug=False ):
+	def __init__(self, hostURL, return_type=None, row_limit=10000, debug=False ):
 		self.hostURL = self._url_format(hostURL)
 		self.debug = debug
+		self.return_type = return_type
+		self.row_limit = row_limit
 		self.headers = {
 			'content-type': 'application/json'
 		}
 
-	# Look for registered search services
+	def set_row_limit(self, row_limit):
+		self.row_limit = row_limit
+		
+	def set_return_type(self, return_type):
+		self.return_type = return_type
+		
+		# Look for registered search services
 	@classmethod
 	def getRegisteredSearchServices(cls):
 		reg = GA4GHRegistryClient()
@@ -164,7 +172,7 @@ class DataConnectClient:
 
 		query = "select {columns} from {table} limit {results}".format(columns=col_string,
 																table=table, results=limit)
-		res = self.run_query(query, returnType='dataframe')
+		res = self.run_query(query, return_type='dataframe')
 		return res
 
 	def getDataFrameFromTable(self, table, column_list=[], limit=1000):
@@ -175,37 +183,52 @@ class DataConnectClient:
 				column_list.join(',')
 		query = f"select {column_list} from {table} limit {limit}"
 		print (query)
-		res = self.run_query(query, returnType='dataframe')
+		res = self.run_query(query, return_type='dataframe')
 		if res.shape[0] >= limit:
 			print(f'The number of rows was limited to {limit}. Try setting limit=your_value if you need more data')
 		return res
 
-	def run_query(self, query, returnType=None, progessIndicator=None):
+	def run_query(self, query, return_type=None, progessIndicator=None):
 
+		if return_type == None:
+			return_type = self.return_type
+			
+		url = self.hostURL + "/search"
 		query = query.replace("\n", " ").replace("\t", " ")
 		query = query.strip()
 		query2 = "{\"query\":\"%s\", \"parameters\":[]}" % query
 		if self.debug:
 			print("Query: {}".format(query2))
-			
-		next_url = self.hostURL + "/search"
 
+		response = requests.request("POST", url,
+			headers=self.headers, data = query2)
+		return self.__handle_response(response, return_type, progessIndicator)
+	
+		
+	def get_data(self, table, return_type=None, progessIndicator=None):
+
+		if return_type == None:
+			return_type = self.return_type
+
+		url = self.hostURL + f"/table/{table}/data"
+		response = requests.request("GET", url)
+		return self.__handle_response(response, return_type, progessIndicator)
+		
+			
+	def __handle_response(self, response, return_type, progessIndicator):
 		pageCount = 0
 		resultRows = []
 		column_list = []
 		if not progessIndicator:
 			print ("Retrieving the query")
-		while next_url != None :
+		done = False
+		while not done :
 			pageCount += 1
 			if progessIndicator:
 				progessIndicator.value += 1
 			else:
 				print ("____Page{}_______________".format(pageCount))
-			if pageCount == 1:
-				response = requests.request("POST", next_url,
-				 headers=self.headers, data = query2)
-			else:
-				response = requests.request("GET", next_url)
+
 			if self.debug: print(response.content)
 			result = (response.json())
 			if self.debug:
@@ -214,7 +237,8 @@ class DataConnectClient:
 				next_url = result['pagination']['next_page_url']
 			else:
 				next_url = None
-			if returnType == 'json':
+				done = True
+			if return_type == 'json':
 				resultRows += result['data']
 			else:
 				for r in result['data']:
@@ -223,18 +247,30 @@ class DataConnectClient:
 			if 'data_model' in result:
 				if self.debug: print('found data model')
 				column_list = result['data_model']['properties'].keys()
+			
+			if len(resultRows) >= self.row_limit:
+				print(f"Client row limit of {self.row_limit} was reached. Reset limit with care!")
+				done = True	
+				
+			# Get the next page
+			if not done :
+				response = requests.request("GET", next_url)
 
 		if progessIndicator:
 			progessIndicator.value = progessIndicator.max
 		
-		if returnType == 'dataframe':
+		if return_type == 'dataframe':
 			df = pd.DataFrame(resultRows, columns=column_list, index=None)
 			return df
 		else:
 			return resultRows
 
-	def run_param_query(self, query, returnType=None, progessIndicator=None):
+	def run_param_query(self, query, return_type=None, progessIndicator=None):
 
+		if return_type == None:
+			return_type = self.return_type
+			
+		url = self.hostURL + "/search"
 		query_text = query['query'].replace("\n", " ").replace("\t", " ")
 		query_text = query_text.strip()
 		#query2 = "{\"query\":\"%s\"}" % query
@@ -242,54 +278,16 @@ class DataConnectClient:
 		if self.debug:
 			print("Query: {}".format(query2))
 		#query2 = query
-		next_url = self.hostURL + "/search"
 
-		pageCount = 0
-		resultRows = []
-		column_list = []
-		if not progessIndicator:
-			print ("Retrieving the query")
-		while next_url != None :
-			pageCount += 1
-			if progessIndicator:
-				progessIndicator.value += 1
-			else:
-				print ("____Page{}_______________".format(pageCount))
-			if pageCount == 1:
-				#response = requests.request("POST", next_url,
-				 #headers=self.headers, data = query2)
-				response = requests.post(next_url, json = query2)
-			else:
-				response = requests.request("GET", next_url)
-			if self.debug: print(response.content)
-			result = (response.json())
-			if self.debug:
-				print(json.dumps(result, indent=3))
-			if 'pagination' in result and 'next_page_url' in result['pagination']:
-				next_url = result['pagination']['next_page_url']
-			else:
-				next_url = None
-			if returnType == 'json':
-				resultRows += result['data']
-			else:
-				for r in result['data']:
-					resultRows.append([*r.values()])
-				
-			if 'data_model' in result:
-				if self.debug: print('found data model')
-				column_list = result['data_model']['properties'].keys()
+		#response = requests.request("POST", url,
+		#	headers=self.headers, data = query2)
+		response = requests.post(url, json = query2)
+		return self.__handle_response(response, return_type, progessIndicator)
 
-		if progessIndicator:
-			progessIndicator.value = progessIndicator.max
-		
-		if returnType == 'dataframe':
-			df = pd.DataFrame(resultRows, columns=column_list, index=None)
-			return df
-		else:
-			return resultRows
+
 
 	def query2Frame(self, query):
-		return self.run_query(query, returnType='dataframe')
+		return self.run_query(query, return_type='dataframe')
 	
 class SearchSchema():
 	''' A table schema '''	
