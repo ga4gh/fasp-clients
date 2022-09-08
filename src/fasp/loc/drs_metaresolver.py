@@ -61,6 +61,7 @@ class DRSMetaResolver(DRSClient):
 		return did  # or whatever
 		
 	def get_object(self, colonPrefixedID):
+		'''get information about aa DRS object'''
 		client, did = self.get_client_robust(colonPrefixedID)
 		if client != None:
 			#if self.debug: print('sending id {} to: {}'.format(id, client.__class__.__name__))
@@ -71,6 +72,7 @@ class DRSMetaResolver(DRSClient):
 			return "prefix unrecognized"
 
 	def get_access_url(self, colonPrefixedID, access_id=None):
+		'''get url to access bytes'''
 		client, did = self.get_client_robust(colonPrefixedID)
 		#client, id = self.get_client(colonPrefixedID)
 		if client != None:
