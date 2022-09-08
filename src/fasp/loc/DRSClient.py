@@ -36,8 +36,8 @@ class DRSClient:
 		return instance
 			
 
-    # Get info about a DrsObject
-    # See https://ga4gh.github.io/data-repository-service-schemas/preview/develop/docs/#_get_object
+	# Get info about a DrsObject
+	# See https://ga4gh.github.io/data-repository-service-schemas/preview/develop/docs/#_get_object
 	def get_object(self, object_id, expand=False):
 		''' Implementation of the DRS getObject method
 		object_id
@@ -55,6 +55,32 @@ class DRSClient:
 		response.raise_for_status()
 		resp = response.content.decode('utf-8')
 
+		return json.loads(resp)
+		#=======================================================================
+		# if response.status_code == 200:
+		# 	resp = response.content.decode('utf-8')
+		# 	return json.loads(resp)
+		# else:
+		# 	print(response.content.decode('utf-8'))
+		# 	return response.status_code
+		#=======================================================================
+
+	# Get info about a DrsObject
+	# See https://ga4gh.github.io/data-repository-service-schemas/preview/develop/docs/#_get_object
+	def get_objects(self, object_list):
+		''' Implementation of the DRS 1,2 getObject method to retieve a selection of DRS objects
+		object_list
+		'''
+		api_url = '{0}/ga4gh/drs/v1/objects'.format(self.api_url_base)
+		if self.debug:
+			print(api_url)
+		# headers generated error on SRA, doesn't seem to be required by the others
+		#headers = {'Content-Type': 'application/json'}
+		#response = requests.get(api_url, headers=headers)
+		body = {'selection':object_list}
+		response = requests.post(api_url, json=body)
+		response.raise_for_status()
+		resp = response.content.decode('utf-8')
 		return json.loads(resp)
 		#=======================================================================
 		# if response.status_code == 200:
