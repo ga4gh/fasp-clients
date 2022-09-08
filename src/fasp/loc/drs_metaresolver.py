@@ -69,6 +69,14 @@ class DRSMetaResolver(DRSClient):
 			return client.get_object(did)
 		else:
 			return "prefix unrecognized"
+		
+	def get_objects(self, drs_uri_list):
+		responses = []
+		for drs_id in drs_uri_list:
+			drs_response = self.get_object(drs_id)
+			responses.append(drs_response)
+		return (responses)
+
 
 	def get_access_url(self, colonPrefixedID, access_id=None):
 		client, did = self.get_client_robust(colonPrefixedID)
@@ -77,6 +85,13 @@ class DRSMetaResolver(DRSClient):
 			return client.get_access_url(did, access_id)
 		else:
 			return "prefix unrecognized"
+		
+	def get_access_urls(self, access_id_list):
+		urls = {}
+		for drs_uri, access_id in access_id_list:
+			url = self.get_access_url(drs_uri, access_id)
+			urls[f"{drs_uri}-{access_id}"] = url
+		return (urls)
 							
 	def get_client(self, submittedID):
 		
