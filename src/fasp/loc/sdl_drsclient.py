@@ -19,9 +19,7 @@ class SRADRSClient(DRSClient):
 
 		self.headers = {'Content' : 'application/json' }
 		
-		self.debug = debug
-		
-		super().__init__(api_url_base, access_id, debug, public)
+		super().__init__(api_url_base, access_id, debug=debug, public=public)
 		
 
 

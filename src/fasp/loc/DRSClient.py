@@ -23,7 +23,6 @@ class DRSClient:
 		self.public = public
 		self.authorized = False
 		
-		
 
 	@classmethod
 	def fromRegistryEntry(cls, registryEntry):
