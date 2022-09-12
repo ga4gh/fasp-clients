@@ -14,8 +14,12 @@ class SRADRSClient(DRSClient):
 	
 	def __init__(self, api_url_base, access_token, access_id=None, debug=False, public=False):
 		''' use region for access_id for this client '''
-		self.access_body = {"ga4gh_passport": access_token}
+		#self.access_body = {"ga4gh_passport": access_token}
+		self.access_body = {"passports": [access_token]}
+
 		self.headers = {'Content' : 'application/json' }
+		
+		self.debug = debug
 		
 		super().__init__(api_url_base, access_id, debug, public)
 		
@@ -39,7 +43,9 @@ class SRADRSClient(DRSClient):
 		''' NCBI DRS uses Passport and a specific way of passing it'''
 		api_url = '{0}/ga4gh/drs/v1/objects/{1}/access/{2}'.format(self.api_url_base, object_id, access_id)
 		if self.debug:
-			print(api_url)
+			print(f'url: {api_url}')
+			print(f'body:')
+			print(json.dumps(self.access_body, indent=3))
 		response = requests.request('POST', api_url, headers=self.headers, json=self.access_body)
 		if self.debug: print(response)
 		if response.status_code == 200:
