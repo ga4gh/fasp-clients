@@ -12,12 +12,12 @@ from fasp.loc import DRSClient
 class SRADRSClient(DRSClient):
 	'''SRA DRS client with ability to convert SRA accessions to DRS ids using IDentityeXchange (IDX) service'''
 	
-	def __init__(self, api_url_base, access_token, access_id=None, debug=False, public=False):
+	def __init__(self, api_url_base, access_token, access_id=None, public=False, debug=False):
 		''' use region for access_id for this client '''
 		self.access_body = {"ga4gh_passport": access_token}
 		self.headers = {'Content' : 'application/json' }
 		
-		super().__init__(api_url_base, access_id, debug, public)
+		super().__init__(api_url_base, access_id=access_id,  public=public, debug=debug)
 		
 
 
@@ -39,7 +39,8 @@ class SRADRSClient(DRSClient):
 		''' NCBI DRS uses Passport and a specific way of passing it'''
 		api_url = '{0}/ga4gh/drs/v1/objects/{1}/access/{2}'.format(self.api_url_base, object_id, access_id)
 		if self.debug:
-			print(api_url)
+			print(f"url: {api_url}")
+			print(f"body:\n{self.access_body}")
 		response = requests.request('POST', api_url, headers=self.headers, json=self.access_body)
 		if self.debug: print(response)
 		if response.status_code == 200:
