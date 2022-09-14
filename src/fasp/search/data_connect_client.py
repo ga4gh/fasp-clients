@@ -9,7 +9,7 @@ import pandas as pd
 
 class DataConnectClient:
 
-	def __init__(self, hostURL, return_type=None, row_limit=10000, debug=False ):
+	def __init__(self, hostURL, return_type=None, row_limit=10000, debug=False, passport=None ):
 		self.hostURL = self._url_format(hostURL)
 		self.debug = debug
 		self.return_type = return_type
@@ -17,6 +17,7 @@ class DataConnectClient:
 		self.headers = {
 			'content-type': 'application/json'
 		}
+		self.passport = passport
 
 	def set_row_limit(self, row_limit):
 		self.row_limit = row_limit
@@ -167,15 +168,15 @@ class DataConnectClient:
 		return template
 
 		
-	def runOneTableQuery(self, column_list, table, limit):
+	def runOneTableQuery(self, column_list, table, limit, passport=None):
 		col_string = ", ".join(column_list)
 
 		query = "select {columns} from {table} limit {results}".format(columns=col_string,
 																table=table, results=limit)
-		res = self.run_query(query, return_type='dataframe')
+		res = self.run_query(query, return_type='dataframe', passport=passport)
 		return res
 
-	def getDataFrameFromTable(self, table, column_list=[], limit=1000):
+	def getDataFrameFromTable(self, table, column_list=[], limit=1000, passport=None):
 		if isinstance(column_list, list):
 			if len(column_list) == 0:
 				column_list = '*'
@@ -183,15 +184,24 @@ class DataConnectClient:
 				column_list.join(',')
 		query = f"select {column_list} from {table} limit {limit}"
 		print (query)
-		res = self.run_query(query, return_type='dataframe')
+		res = self.run_query(query, return_type='dataframe', passport=passport)
 		if res.shape[0] >= limit:
 			print(f'The number of rows was limited to {limit}. Try setting limit=your_value if you need more data')
 		return res
 
-	def run_query(self, query, return_type=None, progessIndicator=None):
+	def __get_query_headers(self, passport=None):
+		if passport == None:
+			passport = self.passport
+		
+		req_headers = self.headers
+		# Add the passport if we have one
+		if passport != None:
+			req_headers["GA4GH-Search-Authorization"] = f"ga4gh-passport={passport}"	
+				
+	def run_query(self, query, return_type=None, progessIndicator=None, passport=None):
 
 		if return_type == None:
-			return_type = self.return_type
+			return_type = self.return_type	
 			
 		url = self.hostURL + "/search"
 		query = query.replace("\n", " ").replace("\t", " ")
@@ -199,19 +209,21 @@ class DataConnectClient:
 		query2 = "{\"query\":\"%s\", \"parameters\":[]}" % query
 		if self.debug:
 			print("Query: {}".format(query2))
+			
+
 
 		response = requests.request("POST", url,
-			headers=self.headers, data = query2)
+			headers=self.__get_query_headers(passport), data = query2)
 		return self.__handle_response(response, return_type, progessIndicator)
 	
 		
-	def get_data(self, table, return_type=None, progessIndicator=None):
+	def get_data(self, table, return_type=None, progessIndicator=None, passport=None):
 
 		if return_type == None:
 			return_type = self.return_type
 
 		url = self.hostURL + f"/table/{table}/data"
-		response = requests.request("GET", url)
+		response = requests.request("GET", url, headers=self.__get_query_headers(passport))
 		return self.__handle_response(response, return_type, progessIndicator)
 		
 			
@@ -238,6 +250,11 @@ class DataConnectClient:
 			else:
 				next_url = None
 				done = True
+			if "errors" in result:
+				for e in result['errors']:
+					print(f"Error status:{e['title']}")
+					print(f"{e['title']}")
+					print(f"Details: {e['details']}")
 			if return_type == 'json':
 				resultRows += result['data']
 			else:
@@ -265,7 +282,7 @@ class DataConnectClient:
 		else:
 			return resultRows
 
-	def run_param_query(self, query, return_type=None, progessIndicator=None):
+	def run_param_query(self, query, return_type=None, progessIndicator=None, passport=None):
 
 		if return_type == None:
 			return_type = self.return_type
@@ -281,13 +298,13 @@ class DataConnectClient:
 
 		#response = requests.request("POST", url,
 		#	headers=self.headers, data = query2)
-		response = requests.post(url, json = query2)
+		response = requests.post(url, json = query2, headers=self.__get_query_headers(passport))
 		return self.__handle_response(response, return_type, progessIndicator)
 
 
 
-	def query2Frame(self, query):
-		return self.run_query(query, return_type='dataframe')
+	def query2Frame(self, query, passport=None):
+		return self.run_query(query, return_type='dataframe', passport=passport)
 	
 class SearchSchema():
 	''' A table schema '''	
