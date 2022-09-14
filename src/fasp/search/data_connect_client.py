@@ -197,6 +197,7 @@ class DataConnectClient:
 		# Add the passport if we have one
 		if passport != None:
 			req_headers["GA4GH-Search-Authorization"] = f"ga4gh-passport={passport}"	
+		return req_headers
 				
 	def run_query(self, query, return_type=None, progessIndicator=None, passport=None):
 
@@ -211,9 +212,11 @@ class DataConnectClient:
 			print("Query: {}".format(query2))
 			
 
-
+		req_headers = self.__get_query_headers(passport)
+		if self.debug:
+			print(f"Headers: {req_headers}")
 		response = requests.request("POST", url,
-			headers=self.__get_query_headers(passport), data = query2)
+			headers=self.headers, data = query2)
 		return self.__handle_response(response, return_type, progessIndicator)
 	
 		
@@ -228,6 +231,7 @@ class DataConnectClient:
 		
 			
 	def __handle_response(self, response, return_type, progessIndicator):
+		if self.debug: print("In handle response")
 		pageCount = 0
 		resultRows = []
 		column_list = []
