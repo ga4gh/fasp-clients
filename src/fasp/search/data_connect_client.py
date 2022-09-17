@@ -2,6 +2,7 @@ import requests
 import sys
 import getopt
 import json
+import os
 
 from fasp.loc import GA4GHRegistryClient
 #from fasp.search.MappingLibrary import MappingLibraryClient
@@ -196,7 +197,14 @@ class DataConnectClient:
 		req_headers = self.headers
 		# Add the passport if we have one
 		if passport != None:
-			req_headers["GA4GH-Search-Authorization"] = f"ga4gh-passport={passport}"	
+			full_key_path = os.path.expanduser(passport)
+			try:
+				with open(full_key_path) as f:
+					passport_content = f.read()
+				req_headers["GA4GH-Search-Authorization"] = f"ga4gh-passport={passport_content}"
+			except:
+				print("Could not find passport file")
+				
 		return req_headers
 				
 	def run_query(self, query, return_type=None, progessIndicator=None, passport=None):
