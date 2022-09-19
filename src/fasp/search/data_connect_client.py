@@ -189,23 +189,33 @@ class DataConnectClient:
 		if res.shape[0] >= limit:
 			print(f'The number of rows was limited to {limit}. Try setting limit=your_value if you need more data')
 		return res
-
-	def __get_query_headers(self, passport=None):
+				
+	def __add_passport(self, body, passport=None):
+		'''Adds Passport/TST to body/header respectively.
+		This is an interim implementation that determines if we have been given a tst or a passport 
+		based on the specifics of the NCBI implementation'''
 		if passport == None:
 			passport = self.passport
 		
 		req_headers = self.headers
-		# Add the passport if we have one
 		if passport != None:
 			full_key_path = os.path.expanduser(passport)
+			file_content = ""
+			if self.debug: print(f"passport path {full_key_path}")
 			try:
 				with open(full_key_path) as f:
-					passport_content = f.read()
-				req_headers["GA4GH-Search-Authorization"] = f"ga4gh-passport={passport_content}"
+					file_content = f.read()
+				if self.debug: print(f"content of passport file {file_content}")
 			except:
 				print("Could not find passport file")
+			if file_content.startswith("ncbi_tstv1"):
+				req_headers["GA4GH-Search-Authorization"] = f"ga4gh-passport={file_content}"				
+			elif file_content.startswith("ncbi_ppv1"):
+				body['passport'] = file_content
+			else:
+				print("Unrecognized passport/visa content")
 				
-		return req_headers
+		return req_headers, body
 				
 	def run_query(self, query, return_type=None, progessIndicator=None, passport=None):
 
@@ -215,16 +225,17 @@ class DataConnectClient:
 		url = self.hostURL + "/search"
 		query = query.replace("\n", " ").replace("\t", " ")
 		query = query.strip()
-		query2 = "{\"query\":\"%s\", \"parameters\":[]}" % query
+		#query2 = "{\"query\":\"%s\", \"parameters\":[]}" % query
+		body = {"query":query, "parameters":[]}
 		if self.debug:
-			print("Query: {}".format(query2))
+			print("Query: {}".format(body))
 			
 
-		req_headers = self.__get_query_headers(passport)
+		req_headers , body = self.__add_passport(body, passport=passport)
 		if self.debug:
 			print(f"Headers: {req_headers}")
 		response = requests.request("POST", url,
-			headers=self.headers, data = query2)
+			headers=self.headers, json = body)
 		return self.__handle_response(response, return_type, progessIndicator)
 	
 		
@@ -234,7 +245,8 @@ class DataConnectClient:
 			return_type = self.return_type
 
 		url = self.hostURL + f"/table/{table}/data"
-		response = requests.request("GET", url, headers=self.__get_query_headers(passport))
+		req_headers , body = self.__add_passport({}, passport=passport)
+		response = requests.request("GET", url, headers=req_headers)
 		return self.__handle_response(response, return_type, progessIndicator)
 		
 			
@@ -310,7 +322,8 @@ class DataConnectClient:
 
 		#response = requests.request("POST", url,
 		#	headers=self.headers, data = query2)
-		response = requests.post(url, json = query2, headers=self.__get_query_headers(passport))
+		req_headers , body = self.__add_passport(query2, passport=passport)
+		response = requests.post(url, json = body, headers=req_headers)
 		return self.__handle_response(response, return_type, progessIndicator)
 
 
