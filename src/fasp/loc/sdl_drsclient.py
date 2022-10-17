@@ -6,15 +6,39 @@ SDL documented here https://www.ncbi.nlm.nih.gov/Traces/sdl/2/
 import json
 import requests
 import os
+import os.path
 
 from fasp.loc import DRSClient
 
+class IDXError(Exception):
+	
+	def __init__(self, code, response):	
+		self.code = code
+		self.response = response
+		super().__init__(f"IDX failed with code {code}")
+		
 class SRADRSClient(DRSClient):
 	'''SRA DRS client with ability to convert SRA accessions to DRS ids using IDentityeXchange (IDX) service'''
 	
-	def __init__(self, api_url_base, access_token, access_id=None, public=False, debug=False):
+	def __init__(self, api_url_base, passport=None, access_id=None, public=False, debug=False):
 		''' use region for access_id for this client '''
-		self.access_body = {"ga4gh_passport": access_token}
+		
+		self.debug = debug
+		
+		if passport != None:
+			full_key_path = os.path.expanduser(passport)
+			file_content = ""
+			if self.debug: print(f"passport path {full_key_path}")
+			try:
+				with open(full_key_path) as f:
+					file_content = f.read()
+				if self.debug: print(f"content of passport file {file_content}")
+			except:
+				print("Unable to read passport")
+			self.access_body = {"ga4gh_passport": file_content}
+		else:
+			self.access_body = {}
+				
 		self.headers = {'Content' : 'application/json' }
 		
 		super().__init__(api_url_base, access_id=access_id,  public=public, debug=debug)
@@ -27,8 +51,12 @@ class SRADRSClient(DRSClient):
 		if verbose: print(url)
 		response = requests.get(url)
 		if verbose: print(response)
-		idxResp = json.loads(response.content)
-		return idxResp
+		if response.code == 200:
+			idxResp = json.loads(response.content)
+			return idxResp
+		else:
+			raise IDXError(response.code, response)
+			return None
 
 	def acc2drsID(self, accession, verbose=False):
 		''' get a drs id for an SRA accession id'''
