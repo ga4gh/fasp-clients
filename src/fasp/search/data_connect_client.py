@@ -5,7 +5,7 @@ import json
 import os
 
 from fasp.loc import GA4GHRegistryClient
-#from fasp.search.MappingLibrary import MappingLibraryClient
+from fasp.search.MappingLibrary import MappingLibraryClient
 import pandas as pd
 
 class DataConnectClient:
@@ -53,6 +53,8 @@ class DataConnectClient:
 			next_url = self.hostURL + "/tables"
 		else:
 			next_url = "{}{}{}".format(self.hostURL,'/tables/catalog/',requestedCatalog)
+
+		self.__add_passport({})
 
 		pageCount = 0
 		if verbose:
@@ -169,6 +171,27 @@ class DataConnectClient:
 		return template
 
 		
+	def get_mappings_for_table(self, table, mapset='combined_mappings'):
+		modl = self.list_table_info(table)
+		#varlist = []
+		props = modl.schema['data_model']['properties']
+		vLookUp = {}
+		for p, v in props.items():
+			vLookUp[v['$id']] = p
+		if self.debug:
+			print(vLookUp)
+		#Find the mappings
+		mcl = MappingLibraryClient()
+		varList = mcl.getMappingsForVars(list(vLookUp.keys()), mapset=mapset)
+		if self.debug:
+			print(varList)
+		# Add column names to the mappings
+		vi = 0
+		for var in varList:
+			varList[vi]['fromCol'] = vLookUp[var['from']]
+			vi += 1
+		return varList
+	
 	def runOneTableQuery(self, column_list, table, limit, passport=None):
 		col_string = ", ".join(column_list)
 
@@ -239,12 +262,14 @@ class DataConnectClient:
 		return self.__handle_response(response, return_type, progessIndicator)
 	
 		
-	def get_data(self, table, return_type=None, progessIndicator=None, passport=None):
+	def get_data(self, table, return_type=None, progessIndicator=None, passport=None, show_urls=True):
 
 		if return_type == None:
 			return_type = self.return_type
 
 		url = self.hostURL + f"/table/{table}/data"
+		if show_urls:
+			print(url)
 		req_headers , body = self.__add_passport({}, passport=passport)
 		response = requests.request("GET", url, headers=req_headers)
 		return self.__handle_response(response, return_type, progessIndicator)

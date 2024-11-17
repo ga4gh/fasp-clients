@@ -20,7 +20,7 @@ class IDXError(Exception):
 class SRADRSClient(DRSClient):
 	'''SRA DRS client with ability to convert SRA accessions to DRS ids using IDentityeXchange (IDX) service'''
 	
-	def __init__(self, api_url_base, passport=None, access_id=None, public=False, debug=False):
+	def __init__(self, api_url_base, passport=None, api_key=None, access_id=None, public=False, debug=False):
 		''' use region for access_id for this client '''
 		
 		self.debug = debug
@@ -41,28 +41,65 @@ class SRADRSClient(DRSClient):
 				
 		self.headers = {'Content' : 'application/json' }
 		
+		self.api_key = api_key
+		
 		super().__init__(api_url_base, access_id=access_id,  public=public, debug=debug)
 		
 
 
-	def acc2drs(self, accession, verbose=False):
+	def acc2drs(self, accession, etl = False):
 		''' get an IDX response for an SRA accession id'''
 		url = '{}/idx/v1/{}'.format(self.api_url_base, accession)
-		if verbose: print(url)
+		#if etl:
+		#	url += '?etl=true'
+		url += f'?etl={etl}'
+		#if self.api_key != None:
+		#	url += f"&api_key={self.api_key}"
+		if self.debug: print(url)
+
 		response = requests.get(url)
-		if verbose: print(response)
-		if response.code == 200:
+		if self.debug: print(response)
+		if response.status_code == 200:
 			idxResp = json.loads(response.content)
 			return idxResp
 		else:
-			raise IDXError(response.code, response)
+			raise IDXError(response.status_code, response)
 			return None
 
-	def acc2drsID(self, accession, verbose=False):
+	def acc2drsID(self, accession, etl = False):
 		''' get a drs id for an SRA accession id'''
-		resp = self.acc2drs(accession, verbose)
+		resp = self.acc2drs(accession, etl)
 		return resp['response'][accession]['drs']
 	
+		# Get info about a DrsObject
+	# See https://ga4gh.github.io/data-repository-service-schemas/preview/develop/docs/#_get_object
+	def get_object(self, object_id, expand=False):
+		''' Implementation of the DRS getObject method
+		object_id
+		expand - whether or not bundles should be expanded - boolean 
+		'''
+		api_url = '{0}/ga4gh/drs/v1/objects/{1}'.format(self.api_url_base, object_id)
+		if expand:
+			api_url += '?expand=true'
+		if self.debug:
+			print(api_url)
+		response = requests.get(api_url)
+		# Let most bad statuses through 
+		if response.status_code not in [200, 409]:
+			response.raise_for_status()
+		# NCBI DRS gives a 409 when data is in cold storage
+		# replace this with a simulated response in anticipation of the change expected in DRS 1.5
+		if response.status_code == 409:
+			host_str = self.api_url_base.split('/')[-1]
+			cold_shoulder = {'access_methods': [{'access_id': '1', 'region': 'unknown', 'type': 'https', 'storage':'cold'}],
+ 						'id': object_id,
+  					'self_url': f'drs://{host_str}/{object_id}'
+  					}
+			return cold_shoulder
+		resp = response.content.decode('utf-8')
+		return json.loads(resp)
+
+				
 	def get_access_url(self, object_id, access_id):
 		''' NCBI DRS uses Passport and a specific way of passing it'''
 		api_url = '{0}/ga4gh/drs/v1/objects/{1}/access/{2}'.format(self.api_url_base, object_id, access_id)
@@ -76,11 +113,13 @@ class SRADRSClient(DRSClient):
 			return json.loads(resp)['url']
 		if response.status_code == 401:
 			print('Unauthorized for that DRS id')
-			return None
+			#return None
+			return 'unauthorized'
 		else:
 			print (response)
 			print (response.content)
-			return None
+			#return None
+			return response.content
 
 
 

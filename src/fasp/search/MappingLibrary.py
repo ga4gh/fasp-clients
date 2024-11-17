@@ -23,7 +23,7 @@ class MappingLibraryClient:
 			
 
 	
-	def getMappingsForVars(self, varList, returnType = None):	
+	def getMappingsForVars(self, varList, mapset='combined_mappings', returnType = None):	
 		
 		varString = ''
 		for varID in varList:
@@ -34,8 +34,8 @@ class MappingLibraryClient:
 			varString += f"'{varID}'"
 		varString += ')';
 		query = f"""
-     		SELECT map_id, m.map_type, m.from_scheme, m.to_scheme, m.to_vocab_id 
-			FROM `isbcgc-216220.metadata.mapping` m 
+     		SELECT map_id, m.map_type, m.from_scheme, m.to_scheme, m.to_vocab_id , m.mapping_level, m.author
+			FROM `isbcgc-216220.metadata.{mapset}` m 
 			where m.from_scheme in  {varString} """
 		query_job = self.bqclient.query(query)  # Send the query
 		queryResults = []
@@ -43,7 +43,9 @@ class MappingLibraryClient:
 			queryResults.append({'map_id':row.map_id,
 								'type':row.map_type,
 								'from':row.from_scheme,
-								'to':row.to_scheme
+								'to':row.to_scheme,
+								'mapping_level':row.mapping_level,
+								'author':row.author
 								})
 			
 		if returnType == 'dataframe':
@@ -59,11 +61,33 @@ class MappingLibraryClient:
 			return queryResults
 
 	
-	def getMappingsForVar(self, varID, returnType = None):
+	def getMappingsForVar(self, varID, mapset='combined_mappings', returnType = None):
 		query = f"""
      	SELECT map_id, m.map_type, m.to_scheme, m.to_vocab_id 
-		FROM `isbcgc-216220.metadata.mapping` m 
+		FROM `isbcgc-216220.metadata.{mapset}` m 
 		where m.from_scheme = '{varID}'"""
+		query_job = self.bqclient.query(query)  # Send the query
+		queryResults = []
+		for row in query_job:
+			queryResults.append(row)
+			
+		if returnType == 'dataframe':
+			resList = []
+			for r in queryResults:
+				res = {}
+				for k, v in r.items():
+					res[k] = v
+				resList.append(res)
+			df = pd.DataFrame(resList)
+			return df
+		else:
+			return queryResults
+	
+	def getMappingsToCode(self, toCode, mapset='combined_mappings', returnType = None):
+		query = f"""
+     	SELECT map_id, m.map_type, m.from_scheme, m.to_vocab_id, m.mapping_level, m.author 
+		FROM `isbcgc-216220.metadata..{mapset}` m 
+		where m.to_scheme = '{toCode}'"""
 		query_job = self.bqclient.query(query)  # Send the query
 		queryResults = []
 		for row in query_job:

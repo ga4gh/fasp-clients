@@ -13,7 +13,7 @@ class SBDRSClient(DRSClient):
 
     # Initialize a DRS Client for the service at the specified url base
     # and with the REST resource to provide an access key 
-	def __init__(self, api_url_base, api_key_path, access_id, debug=False):
+	def __init__(self, api_url_base, api_key_path, access_id=None, debug=False):
 		super().__init__(api_url_base, access_id, debug=debug)
 		self.api_key_path = api_key_path
 

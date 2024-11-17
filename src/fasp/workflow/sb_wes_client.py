@@ -119,9 +119,9 @@ class sbWESClient(WESClient):
 			
 			for r in rDict['runs']:
 				print(r['run_id'],r['state'])
-			#runs = rDict['runs']
-			#for r in runs:
-			#	runsdf = self.addRun(r['run_id'], runsdf)
+			runs = rDict['runs']
+			for r in runs:
+				runsdf = self.addRun(r['run_id'], runsdf)
 		return runsdf
 
 class sbcgcWESClient(sbWESClient):
